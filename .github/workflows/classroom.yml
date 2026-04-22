@@ -15,7 +15,7 @@ jobs:
       ASSIGNMENT_NAME: "FM3 - Python Programming"
       MOODLE_URL: ${{ secrets.MOODLE_URL }}
       MOODLE_TOKEN: ${{ secrets.MOODLE_TOKEN }}
-      MOODLE_COURSE_ID: "19"
+      MOODLE_COURSE_ID: "21"
       MOODLE_ACTIVITY_ID: "3680"
       SHARED_CONFIG_REPO: "izen-shared-config"
 
