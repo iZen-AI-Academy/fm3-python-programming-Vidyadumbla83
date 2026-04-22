@@ -37,6 +37,28 @@ def compute_score() -> dict:
     return result
 
 
+def resolve_github_username():
+    # First try explicit env var
+    github_username = os.getenv("GITHUB_USERNAME", "").strip()
+    if github_username and github_username.lower() != "izen-academy":
+        return github_username
+
+    # Fallback: derive from repo name
+    repo = os.getenv("GITHUB_REPOSITORY", "").strip()
+    # Example: Izen-Academy/fm3-python-programming-izenaiclassroom
+    if "/" in repo:
+        repo_name = repo.split("/", 1)[1]
+    else:
+        repo_name = repo
+
+    # Split by hyphen and take the last chunk
+    # For fm3-python-programming-izenaiclassroom -> izenaiclassroom
+    if "-" in repo_name:
+        return repo_name.split("-")[-1]
+
+    raise RuntimeError("Could not determine GitHub username from environment")
+
+
 def lookup_moodle_student_id(github_username: str) -> Optional[str]:
     if not MAP_PATH.exists():
         raise FileNotFoundError(f"Mapping file not found: {MAP_PATH}")
@@ -53,7 +75,9 @@ def sync_score() -> None:
         raise FileNotFoundError("results.json not found. Run compute mode first.")
 
     results = json.loads(RESULTS_PATH.read_text(encoding="utf-8"))
-    github_username = results["github_username"]
+    github_username = resolve_github_username()
+    print(f"Resolved GitHub username: {github_username}")
+
     student_id = lookup_moodle_student_id(github_username)
     if not student_id:
         raise RuntimeError(f"No Moodle student id found for GitHub user: {github_username}")
@@ -67,17 +91,23 @@ def sync_score() -> None:
         "wstoken": moodle_token,
         "wsfunction": "core_grades_update_grades",
         "moodlewsrestformat": "json",
-        "component": "mod_assign",
+        "source": "mod/assign",
         "courseid": course_id,
+        "component": "mod_assign",
         "activityid": activity_id,
-        "source": "GitHub Classroom",
+        "itemnumber": 0,
         "grades[0][studentid]": student_id,
         "grades[0][grade]": results["score"],
     }
 
+    print("Sending Moodle payload:")
+    for k, v in payload.items():
+        print(f"{k}: {v}")
+
     response = requests.post(moodle_url, data=payload, timeout=30)
+    print("Response status:", response.status_code)
+    print("Response body:", response.text)
     response.raise_for_status()
-    print(response.text)
 
 
 def main() -> None:
